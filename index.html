@@ -30,7 +30,7 @@
   <td id="projectlogo"><img alt="Logo" src="logo.png"/></td>
   <td id="projectalign" style="padding-left: 0.5em;">
    <div id="projectname">simdutf
-   &#160;<span id="projectnumber">5.2.4</span>
+   &#160;<span id="projectnumber">5.2.6</span>
    </div>
    <div id="projectbrief">Unicode at GB/s.</div>
   </td>
@@ -108,6 +108,7 @@ Table of contents</h1>
 <li><a href="#base64">Base64</a></li>
 <li><a href="#the-sutf-command-line-tool">The sutf command-line tool</a></li>
 <li><a href="#manual-implementation-selection">Manual implementation selection</a></li>
+<li><a href="#thread-safety">Thread safety</a></li>
 <li><a href="#references">References</a></li>
 <li><a href="#license">License</a></li>
 </ul>
@@ -190,7 +191,7 @@ Usage (Usage)</h2>
 Quick Start</h2>
 <p>Linux or macOS users might follow the following instructions if they have a recent C++ compiler installed and the standard utilities (<code>wget</code>, <code>unzip</code>, etc.)</p>
 <ol type="1">
-<li>Pull the library in a directory <div class="fragment"><div class="line">wget https://github.com/simdutf/simdutf/releases/download/v5.2.4/singleheader.zip</div>
+<li>Pull the library in a directory <div class="fragment"><div class="line">wget https://github.com/simdutf/simdutf/releases/download/v5.2.6/singleheader.zip</div>
 <div class="line">unzip singleheader.zip</div>
 </div><!-- fragment --></li>
 <li>Compile <div class="fragment"><div class="line">c++ -std=c++17 -o amalgamation_demo amalgamation_demo.cpp</div>
@@ -219,7 +220,7 @@ Usage (CMake)</h2>
 <p>Since ICU is so common and popular, we assume that you may have it already on your system. When it is not found, it is simply omitted from the benchmarks. Thus, to benchmark against ICU, make sure you have ICU installed on your machine and that cmake can find it. For macOS, you may install it with brew using <code>brew install icu4c</code>. If you have ICU on your system but cmake cannot find it, you may need to provide cmake with a path to ICU, such as <code>ICU_ROOT=/usr/local/opt/icu4c cmake -B build</code>.</p>
 <h2><a class="anchor" id="autotoc_md8"></a>
 Single-header version</h2>
-<p>You can create a single-header version of the library where all of the code is put into two files (<code><a class="el" href="simdutf_8h_source.html">simdutf.h</a></code> and <code>simdutf.cpp</code>). We publish a zip archive containing these files, e.g., see <a href="https://github.com/simdutf/simdutf/releases/download/v5.2.4/singleheader.zip">https://github.com/simdutf/simdutf/releases/download/v5.2.4/singleheader.zip</a></p>
+<p>You can create a single-header version of the library where all of the code is put into two files (<code><a class="el" href="simdutf_8h_source.html">simdutf.h</a></code> and <code>simdutf.cpp</code>). We publish a zip archive containing these files, e.g., see <a href="https://github.com/simdutf/simdutf/releases/download/v5.2.6/singleheader.zip">https://github.com/simdutf/simdutf/releases/download/v5.2.6/singleheader.zip</a></p>
 <p>You may generate it on your own using a Python script.</p>
 <div class="fragment"><div class="line">python3 ./singleheader/amalgamate.py</div>
 </div><!-- fragment --><p>We require Python 3 or better.</p>
@@ -814,8 +815,10 @@ Manual implementation selection</h2>
 <div class="line">  std::cout &lt;&lt; <span class="stringliteral">&quot;I have manually selected: &quot;</span> &lt;&lt; simdutf::get_active_implementation()-&gt;name() &lt;&lt; std::endl;</div>
 <div class="line">  <span class="keywordflow">return</span> EXIT_SUCCESS;</div>
 <div class="line">}</div>
-</div><!-- fragment --><p>Within the simdutf library,</p>
-<h2><a class="anchor" id="autotoc_md14"></a>
+</div><!-- fragment --><h2><a class="anchor" id="autotoc_md14"></a>
+Thread safety</h2>
+<p>We built simdutf with thread safety in mind. The simdutf library is single-threaded throughout. The CPU detection, which runs the first time parsing is attempted and switches to the fastest parser for your CPU, is transparent and thread-safe. Our runtime dispatching is based on global objects that are instantiated at the beginning of the main thread and may be discarded at the end of the main thread. If you have multiple threads running and some threads use the library while the main thread is cleaning up ressources, you may encounter issues. If you expect such problems, you may consider using <a href="https://en.cppreference.com/w/cpp/utility/program/quick_exit">std::quick_exit</a>..</p>
+<h2><a class="anchor" id="autotoc_md15"></a>
 References</h2>
 <ul>
 <li>Robert Clausecker, Daniel Lemire, <a href="https://arxiv.org/abs/2212.05098">Transcoding Unicode Characters with AVX-512 Instructions</a>, Software: Practice and Experience (to appear).</li>
@@ -824,7 +827,7 @@ References</h2>
 <li>Wojciech Muła, Daniel Lemire, <a href="https://arxiv.org/abs/1910.05109">Base64 encoding and decoding at almost the speed of a memory copy</a>, Software: Practice and Experience 50 (2), 2020.</li>
 <li>Wojciech Muła, Daniel Lemire, <a href="https://arxiv.org/abs/1704.00605">Faster Base64 Encoding and Decoding using AVX2 Instructions</a>, ACM Transactions on the Web 12 (3), 2018.</li>
 </ul>
-<h2><a class="anchor" id="autotoc_md15"></a>
+<h2><a class="anchor" id="autotoc_md16"></a>
 License</h2>
 <p>This code is made available under the <a href="https://www.apache.org/licenses/LICENSE-2.0.html">Apache License 2.0</a> as well as the MIT license. As a user, you can pick the license you prefer.</p>
 <p>We include a few competitive solutions under the benchmarks/competition directory. They are provided for research purposes only. </p>
