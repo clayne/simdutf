@@ -30,7 +30,7 @@
   <td id="projectlogo"><img alt="Logo" src="logo.png"/></td>
   <td id="projectalign" style="padding-left: 0.5em;">
    <div id="projectname">simdutf
-   &#160;<span id="projectnumber">5.3.0</span>
+   &#160;<span id="projectnumber">5.3.2</span>
    </div>
    <div id="projectbrief">Unicode at GB/s.</div>
   </td>
@@ -194,7 +194,7 @@ Usage (Usage)</h2>
 Quick Start</h2>
 <p>Linux or macOS users might follow the following instructions if they have a recent C++ compiler installed and the standard utilities (<code>wget</code>, <code>unzip</code>, etc.)</p>
 <ol type="1">
-<li>Pull the library in a directory <div class="fragment"><div class="line">wget https://github.com/simdutf/simdutf/releases/download/v5.3.0/singleheader.zip</div>
+<li>Pull the library in a directory <div class="fragment"><div class="line">wget https://github.com/simdutf/simdutf/releases/download/v5.3.2/singleheader.zip</div>
 <div class="line">unzip singleheader.zip</div>
 </div><!-- fragment --></li>
 <li>Compile <div class="fragment"><div class="line">c++ -std=c++17 -o amalgamation_demo amalgamation_demo.cpp</div>
@@ -224,7 +224,7 @@ Usage (CMake)</h2>
 <p>Since ICU is so common and popular, we assume that you may have it already on your system. When it is not found, it is simply omitted from the benchmarks. Thus, to benchmark against ICU, make sure you have ICU installed on your machine and that cmake can find it. For macOS, you may install it with brew using <code>brew install icu4c</code>. If you have ICU on your system but cmake cannot find it, you may need to provide cmake with a path to ICU, such as <code>ICU_ROOT=/usr/local/opt/icu4c cmake -B build</code>.</p>
 <h2><a class="anchor" id="autotoc_md8"></a>
 Single-header version</h2>
-<p>You can create a single-header version of the library where all of the code is put into two files (<code><a class="el" href="simdutf_8h_source.html">simdutf.h</a></code> and <code>simdutf.cpp</code>). We publish a zip archive containing these files, e.g., see <a href="https://github.com/simdutf/simdutf/releases/download/v5.3.0/singleheader.zip">https://github.com/simdutf/simdutf/releases/download/v5.3.0/singleheader.zip</a></p>
+<p>You can create a single-header version of the library where all of the code is put into two files (<code><a class="el" href="simdutf_8h_source.html">simdutf.h</a></code> and <code>simdutf.cpp</code>). We publish a zip archive containing these files, e.g., see <a href="https://github.com/simdutf/simdutf/releases/download/v5.3.2/singleheader.zip">https://github.com/simdutf/simdutf/releases/download/v5.3.2/singleheader.zip</a></p>
 <p>You may generate it on your own using a Python script.</p>
 <div class="fragment"><div class="line">python3 ./singleheader/amalgamate.py</div>
 </div><!-- fragment --><p>We require Python 3 or better.</p>
@@ -390,7 +390,8 @@ API</h2>
 <div class="line"><span class="comment">/*</span></div>
 <div class="line"><span class="comment"> * Compute the number of bytes that this UTF-16LE/BE string would require in Latin1 format.</span></div>
 <div class="line"><span class="comment"> *</span></div>
-<div class="line"><span class="comment"> * This function does not validate the input.</span></div>
+<div class="line"><span class="comment"> * This function does not validate the input.  It is acceptable to pass invalid UTF-16 strings but in such cases</span></div>
+<div class="line"><span class="comment"> * the result is implementation defined.</span></div>
 <div class="line"><span class="comment"> *</span></div>
 <div class="line"><span class="comment"> * This function is not BOM-aware.</span></div>
 <div class="line"><span class="comment"> *</span></div>
@@ -593,7 +594,41 @@ Base64</h2>
 <div class="line">} else {</div>
 <div class="line">  buffer.resize(r.count); // resize the buffer according to actual number of bytes</div>
 <div class="line">}</div>
-</div><!-- fragment --><p>In some instances, you may want to limit the size of the output further when decoding base64. For this purpose, you may use the <code>base64_to_binary_safe</code> functions. The functions may also be useful if you seek to decode the input into segments having a maximal capacity.</p>
+</div><!-- fragment --><p>Let us consider a more interesting example. Take the following strings: <code>"  A  A  "</code>, <code>"  A  A  G  A  /  v  8  "</code>, <code>"  A  A  G  A  /  v  8  =  "</code>, <code>"  A  A  G  A  /  v  8  =  =  "</code>. They are all valid WHATWG base64 inputs, except for the last one. The first string decodes to a single byte value (0) while the second and third decode to the byte sequence <code>0, 0x1, 0x80, 0xfe, 0xff</code>.</p>
+<div class="fragment"><div class="line">{C++}</div>
+<div class="line"> std::vector&lt;std::string&gt; sources = {</div>
+<div class="line">     &quot;  A  A  &quot;, &quot;  A  A  G  A  /  v  8  &quot;, &quot;  A  A  G  A  /  v  8  =  &quot;, &quot;  A  A  G  A  /  v  8  =  =  &quot;};</div>
+<div class="line"> std::vector&lt;std::vector&lt;uint8_t&gt;&gt; expected = {</div>
+<div class="line">     {0}, {0, 0x1, 0x80, 0xfe, 0xff}, {0, 0x1, 0x80, 0xfe, 0xff}, {}}; // last one is in error</div>
+<div class="line"> for(size_t i = 0; i &lt; sources.size(); i++) {</div>
+<div class="line">   const std::string &amp;source = sources[i];</div>
+<div class="line">   std::cout &lt;&lt; &quot;source: &#39;&quot; &lt;&lt; source &lt;&lt; &quot;&#39;&quot; &lt;&lt; std::endl;</div>
+<div class="line">   // allocate enough memory for the maximal binary length</div>
+<div class="line">   std::vector&lt;uint8_t&gt; buffer(simdutf::maximal_binary_length_from_base64(</div>
+<div class="line">      source.data(), source.size()));</div>
+<div class="line">   // convert to binary and check for errors</div>
+<div class="line">   simdutf::result r = simdutf::base64_to_binary(</div>
+<div class="line">       source.data(), source.size(), (char*)buffer.data());</div>
+<div class="line">   if(r.error != simdutf::error_code::SUCCESS) {</div>
+<div class="line">     // We have that expected[i].empty().</div>
+<div class="line">     std::cout &lt;&lt; &quot;output: error&quot; &lt;&lt; std::endl;</div>
+<div class="line">   } else {</div>
+<div class="line">     buffer.resize(r.count); // in case of success, r.count contains the output length</div>
+<div class="line">     // We have that buffer == expected[i]</div>
+<div class="line">     std::cout &lt;&lt; &quot;output: &quot; &lt;&lt; r.count &lt;&lt; &quot; bytes&quot; &lt;&lt; std::endl;</div>
+<div class="line">   }</div>
+<div class="line"> }</div>
+</div><!-- fragment --><p>This code should print the following:</p>
+<div class="fragment"><div class="line">source: &#39;  A  A  &#39;</div>
+<div class="line">output: 1 bytes</div>
+<div class="line">source: &#39;  A  A  G  A  /  v  8  &#39;</div>
+<div class="line">output: 5 bytes</div>
+<div class="line">source: &#39;  A  A  G  A  /  v  8  =  &#39;</div>
+<div class="line">output: 5 bytes</div>
+<div class="line">source: &#39;  A  A  G  A  /  v  8  =  =  &#39;</div>
+<div class="line">output: error</div>
+</div><!-- fragment --><p>As you can see, the result is as expected.</p>
+<p>In some instances, you may want to limit the size of the output further when decoding base64. For this purpose, you may use the <code>base64_to_binary_safe</code> functions. The functions may also be useful if you seek to decode the input into segments having a maximal capacity.</p>
 <div class="fragment"><div class="line">{C++}</div>
 <div class="line"> size_t len = 72; // for simplicity we chose len divisible by 3</div>
 <div class="line"> std::vector&lt;char&gt; base64(len, &#39;a&#39;); // we want to decode &#39;aaaaa....&#39;</div>
@@ -618,6 +653,42 @@ Base64</h2>
 <div class="line"> // We decoded r.count base64 8-bit units to limited_length2 bytes</div>
 <div class="line"> // We are done</div>
 <div class="line"> assert(limited_length2 + limited_length == (len + 3) / 4 * 3);</div>
+</div><!-- fragment --><p>We can repeat our previous examples with the various spaced strings using <code>base64_to_binary_safe</code>. It works much the same except that the convention for the content of <code>result.count</code> differs. The output size is stored by reference in the output length parameter.</p>
+<div class="fragment"><div class="line">std::vector&lt;std::string&gt; sources = {</div>
+<div class="line">     <span class="stringliteral">&quot;  A  A  &quot;</span>, <span class="stringliteral">&quot;  A  A  G  A  /  v  8  &quot;</span>, <span class="stringliteral">&quot;  A  A  G  A  /  v  8  =  &quot;</span>, <span class="stringliteral">&quot;  A  A  G  A  /  v  8  =  =  &quot;</span>};</div>
+<div class="line"> std::vector&lt;std::vector&lt;uint8_t&gt;&gt; expected = {</div>
+<div class="line">     {0}, {0, 0x1, 0x80, 0xfe, 0xff}, {0, 0x1, 0x80, 0xfe, 0xff}, {}}; <span class="comment">// last one is in error</span></div>
+<div class="line"> <span class="keywordflow">for</span>(<span class="keywordtype">size_t</span> i = 0; i &lt; sources.size(); i++) {</div>
+<div class="line">   <span class="keyword">const</span> std::string &amp;source = sources[i];</div>
+<div class="line">   std::cout &lt;&lt; <span class="stringliteral">&quot;source: &#39;&quot;</span> &lt;&lt; source &lt;&lt; <span class="stringliteral">&quot;&#39;&quot;</span> &lt;&lt; std::endl;</div>
+<div class="line">   <span class="comment">// allocate enough memory for the maximal binary length</span></div>
+<div class="line">   std::vector&lt;uint8_t&gt; buffer(simdutf::maximal_binary_length_from_base64(</div>
+<div class="line">      source.data(), source.size()));</div>
+<div class="line">   <span class="comment">// convert to binary and check for errors</span></div>
+<div class="line">   <span class="keywordtype">size_t</span> output_length = buffer.size();</div>
+<div class="line">   <a class="code" href="structsimdutf_1_1result.html">simdutf::result</a> r = simdutf::base64_to_binary_safe(</div>
+<div class="line">       source.data(), source.size(), (<span class="keywordtype">char</span>*)buffer.data(), output_length);</div>
+<div class="line">   <span class="keywordflow">if</span>(r.error != simdutf::error_code::SUCCESS) {</div>
+<div class="line">     <span class="comment">// We have expected[i].empty()</span></div>
+<div class="line">     std::cout &lt;&lt; <span class="stringliteral">&quot;output: error&quot;</span> &lt;&lt; std::endl;</div>
+<div class="line">   } <span class="keywordflow">else</span> {</div>
+<div class="line">     buffer.resize(output_length); <span class="comment">// in case of success, output_length contains the output length</span></div>
+<div class="line">     <span class="comment">// We have buffer == expected[i])</span></div>
+<div class="line">     std::cout &lt;&lt; <span class="stringliteral">&quot;ouput: &quot;</span> &lt;&lt; output_length &lt;&lt; <span class="stringliteral">&quot; bytes&quot;</span> &lt;&lt; std::endl;</div>
+<div class="line">     std::cout &lt;&lt; <span class="stringliteral">&quot;input (consumed): &quot;</span> &lt;&lt; r.count &lt;&lt; <span class="stringliteral">&quot; bytes&quot;</span> &lt;&lt; std::endl;</div>
+<div class="line">   }</div>
+</div><!-- fragment --><p>This code should output the following:</p>
+<div class="fragment"><div class="line">source: &#39;  A  A  &#39;</div>
+<div class="line">ouput: 1 bytes</div>
+<div class="line">input (consumed): 8 bytes</div>
+<div class="line">source: &#39;  A  A  G  A  /  v  8  &#39;</div>
+<div class="line">ouput: 5 bytes</div>
+<div class="line">input (consumed): 23 bytes</div>
+<div class="line">source: &#39;  A  A  G  A  /  v  8  =  &#39;</div>
+<div class="line">ouput: 5 bytes</div>
+<div class="line">input (consumed): 26 bytes</div>
+<div class="line">source: &#39;  A  A  G  A  /  v  8  =  =  &#39;</div>
+<div class="line">output: error</div>
 </div><!-- fragment --><p>See our function specifications for more details.</p>
 <p>In other instances, you may receive your base64 inputs in 16-bit units (e.g., from UTF-16 strings): we have function overloads for these cases as well.</p>
 <p>Some users may want to decode the base64 inputs in chunks, especially when doing file or networking programming. These users should see <code>tools/fastbase64.cpp</code>, a command-line utility designed for as an example. It reads and writes base64 files using chunks of at most a few tens of kilobytes.</p>
@@ -859,8 +930,8 @@ Thread safety</h2>
 <h2><a class="anchor" id="autotoc_md15"></a>
 References</h2>
 <ul>
-<li>Robert Clausecker, Daniel Lemire, <a href="https://arxiv.org/abs/2212.05098">Transcoding Unicode Characters with AVX-512 Instructions</a>, Software: Practice and Experience (to appear).</li>
-<li>Daniel Lemire, Wojciech Muła, <a href="https://arxiv.org/abs/2109.10433">Transcoding Billions of Unicode Characters per Second with SIMD Instructions</a>, Software: Practice and Experience52 (2), 2022.</li>
+<li>Robert Clausecker, Daniel Lemire, <a href="https://arxiv.org/abs/2212.05098">Transcoding Unicode Characters with AVX-512 Instructions</a>, Software: Practice and Experience 53 (12), 2023.</li>
+<li>Daniel Lemire, Wojciech Muła, <a href="https://arxiv.org/abs/2109.10433">Transcoding Billions of Unicode Characters per Second with SIMD Instructions</a>, Software: Practice and Experience 52 (2), 2022.</li>
 <li>John Keiser, Daniel Lemire, <a href="https://arxiv.org/abs/2010.03090">Validating UTF-8 In Less Than One Instruction Per Byte</a>, Software: Practice and Experience 51 (5), 2021.</li>
 <li>Wojciech Muła, Daniel Lemire, <a href="https://arxiv.org/abs/1910.05109">Base64 encoding and decoding at almost the speed of a memory copy</a>, Software: Practice and Experience 50 (2), 2020.</li>
 <li>Wojciech Muła, Daniel Lemire, <a href="https://arxiv.org/abs/1704.00605">Faster Base64 Encoding and Decoding using AVX2 Instructions</a>, ACM Transactions on the Web 12 (3), 2018.</li>
